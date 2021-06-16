@@ -4,14 +4,15 @@ var WDSlider = (function(){
   var lastX;
   var movedPercent;
 
-  var slider = document.querySelector('.WD-slider-container');
-  var slides = document.querySelectorAll('.WD-slider-component');
-  var btnLeft = document.querySelector('.WD-slider-btn-left');
-  var btnRight = document.querySelector('.WD-slider-btn-right');
-  var dotContainer = document.querySelector('.WD-dots');
+  var slider;
+  var sliderContainers = document.querySelectorAll('.WD-slider-container');
+  
+  var slides = [];
+  var LeftButton;
+  var RightButton;
+  var dotContainer;
 
   var curSlide = 0;
-  var maxSlide = slides.length;
 
   var createDots = function () {
       slides.forEach(function (_, i) {
@@ -22,18 +23,51 @@ var WDSlider = (function(){
       });
   };
 
-  var captureSlideHandler = function(evt){
-      var nodes = Array.prototype.slice.call(slider.children)
+  var createSlideNavButtons = function () {
+    console.log(slider)
+      slider.insertAdjacentHTML(
+          'beforeend',
+          "<button class='WD-slider-btn WD-slider-btn-left'>&larr;</button>"
+      );
+      slider.insertAdjacentHTML(
+        'beforeend',
+        `<button class="WD-slider-btn WD-slider-btn-right">&rarr;</button>`
+    );
+  };
 
-      //curSlide = nodes.indexOf(evt.currentTarget);
+  var initializeObjectsForSlider = function(evt){
+    slider = evt.currentTarget;
+    slides = slider.querySelectorAll('.WD-slider-component');
+    curSlide = evt.target.dataset.curSlide
+  };
+
+  var dotClickHandler = function (e) {
+    if (e.target.classList.contains('WD-dot')) {
+      var slide = e.target.dataset.slide;
+      //console.log("dot click handler", slide)
+      goToSlide(slide,e);
+      activateDot(slide,e);
+      updateCurSlideState(slide,e);
+    }
+  };
+
+  var updateCurSlideState = function(SlideCount,evt){
+    evt.target.closest(".WD-slider-container").dataset.curSlide = SlideCount;
   };
 
   var slideMouseDownHandler = function(evt){
       evt.preventDefault();
-      slides.forEach(function(slide){
+      console.log("curSlide",evt.currentTarget.dataset);
+      console.log(evt.currentTarget);
+      //initializeObjectsForSlider(evt);
+      var selectedSlideContainer_Slides = evt.currentTarget.querySelectorAll(".WD-slider-component");
+      selectedSlideContainer_Slides.forEach(function(slide){
           console.log(slide.contains(evt.target));
       })
-      if(evt.target.classList.contains("WD-slider-btn") || evt.target.classList.contains("WD-dot") || evt.target.classList.contains("WD-dots")) return;
+      if(evt.target.classList.contains("WD-slider-btn") || 
+      evt.target.classList.contains("WD-dot") || 
+      evt.target.classList.contains("WD-dots")) return;
+
       isPressed = true
       startX = evt.offsetX;
   };
@@ -45,24 +79,27 @@ var WDSlider = (function(){
 
       var width = parseInt(window.getComputedStyle(slider).width.replace("px",""))
       movedPercent = ( (startX - lastX) * 100 / width ) 
-      slides.forEach(function(s, i) {
+      var selectedSlideContainer_Slides = evt.currentTarget.querySelectorAll(".WD-slider-component");
+      selectedSlideContainer_Slides.forEach(function(s, i) {
           var style = window.getComputedStyle(s);
-          var matrix = new WebKitCSSMatrix(style.transform);
+          var matrix = parseInt(style.transform.split(",")[4].trim());
           //s.style.transform = `translateX(${( (100 * (i - 0)) - movedPercent) }%)`
-          s.style.transform = `translateX(${( (100 * (matrix.m41/width))   - movedPercent) }%)`
+          s.style.transform = `translateX(${( (100 * (matrix/width))   - movedPercent) }%)`
       });
   };
 
   var slideMouseUpHandler = function(evt){
       if(!isPressed) return;
       
-      if(evt.target.classList.contains("WD-slider-btn") || evt.target.classList.contains("WD-dot") || evt.target.classList.contains("WD-dots")) return;
+      if(evt.target.classList.contains("WD-slider-btn") || 
+      evt.target.classList.contains("WD-dot") || 
+      evt.target.classList.contains("WD-dots")) return;
       
       if(movedPercent > 5){
-        nextSlide();
+        nextSlide(evt);
       }
       else if(movedPercent < -5){
-        prevSlide();
+        prevSlide(evt);
       }
       else{
           goToSlide(curSlide)
@@ -71,65 +108,86 @@ var WDSlider = (function(){
       isPressed = false;
   }
 
-  var activateDot = function (slide) {
-      document.querySelectorAll('.WD-dot').forEach(function(dot){
+  var activateDot = function (slide,evt=null) {
+    if(evt != null){
+      slider = evt.target.closest(".WD-slider-container")
+    }
+
+    if(typeof slider != undefined){
+      slider.querySelectorAll('.WD-dot').forEach(function(dot){
           dot.classList.remove('WD-dots-active')
       });
-      document.querySelector(`.WD-dot[data-slide="${slide}"]`).classList.add('WD-dots-active');
+      slider.querySelector(`.WD-dot[data-slide="${slide}"]`).classList.add('WD-dots-active');
+    }
   };
 
-  var goToSlide = function (slide) {
-      slides.forEach(function(s, i){
-          s.style.transform = `translateX(${100 * (i - slide)}%)`
-      });
+  var goToSlide = function (slide,evt=null) {
+    if(evt!=null){
+      slides = evt.target.closest(".WD-slider-container").querySelectorAll(".WD-slider-component")
+    }
+    slides.forEach(function(s, i){
+        s.style.transform = `translateX(${100 * (i - slide)}%)`
+    });
   };
 
 // Next slide
-  var nextSlide = function () {
-      if (curSlide === maxSlide - 1) {
-          curSlide = 0;
-      } else {
-          curSlide++;
+  var nextSlide = function (evt) {
+      var selectedSlideContainer_CurSlide = parseInt(evt.target.closest(".WD-slider-container").dataset.curSlide);
+      if (selectedSlideContainer_CurSlide === evt.target.closest(".WD-slider-container").querySelectorAll(".WD-slider-component").length - 1) {
+        selectedSlideContainer_CurSlide = 0;
+      } 
+      else {
+        selectedSlideContainer_CurSlide += 1;
       }
-      goToSlide(curSlide);
-      activateDot(curSlide);
+      goToSlide(selectedSlideContainer_CurSlide,evt);
+      activateDot(selectedSlideContainer_CurSlide,evt);
+      updateCurSlideState(selectedSlideContainer_CurSlide,evt);
   };
 
-  var prevSlide = function () {
-      if (curSlide === 0) {
-        curSlide = maxSlide - 1;
+  var prevSlide = function (evt) {
+      var selectedSlideContainer_CurSlide = parseInt(evt.target.closest(".WD-slider-container").dataset.curSlide);
+      if (selectedSlideContainer_CurSlide === 0) {
+        selectedSlideContainer_CurSlide = evt.target.closest(".WD-slider-container").querySelectorAll(".WD-slider-component").length - 1;
       } else {
-        curSlide--;
+        selectedSlideContainer_CurSlide -= 1;
       }
-      goToSlide(curSlide);
-      activateDot(curSlide);
+      goToSlide(selectedSlideContainer_CurSlide,evt);
+      activateDot(selectedSlideContainer_CurSlide,evt);
+      updateCurSlideState(selectedSlideContainer_CurSlide,evt);
   };
 
   var init = function () {
 
-      btnRight.addEventListener('click', nextSlide);
-      btnLeft.addEventListener('click', prevSlide);
-  
-      slider.addEventListener("mousedown", slideMouseDownHandler);
-      slider.addEventListener("mousemove", slideMouseMoveHandler);
-      slider.addEventListener("mouseup", slideMouseUpHandler);
-      slider.addEventListener("mouseleave", slideMouseUpHandler);
-      slides.forEach(function(slide){
-          slide.addEventListener("mousedown",captureSlideHandler);
-      })
+    sliderContainers.forEach(function(sliderContainer){
+      sliderContainer.dataset.curSlide = curSlide;
+      slider = sliderContainer;
 
-      dotContainer.addEventListener('click', function (e) {
-          if (e.target.classList.contains('WD-dot')) {
-            var slide = e.target.dataset.slide;
-            goToSlide(slide);
-            activateDot(slide);
-          }
-        });
+      sliderContainer.addEventListener("mousedown", slideMouseDownHandler);
+      sliderContainer.addEventListener("mousemove", slideMouseMoveHandler);
+      sliderContainer.addEventListener("mouseup", slideMouseUpHandler);
+      sliderContainer.addEventListener("mouseleave", slideMouseUpHandler);
 
-      goToSlide(0);
+      dotContainer = sliderContainer.querySelector('.WD-dots');
+
+      dotContainer.addEventListener('click', dotClickHandler);
+
+      slides = sliderContainer.querySelectorAll('.WD-slider-component');
+
+      goToSlide(curSlide);
+
+      createSlideNavButtons();
+
+      LeftButton = sliderContainer.querySelector('.WD-slider-btn-left');
+      RightButton = sliderContainer.querySelector('.WD-slider-btn-right');
+
+      RightButton.addEventListener('click', nextSlide);
+      LeftButton.addEventListener('click', prevSlide);
+
       createDots();
 
-      activateDot(0);
+      activateDot(curSlide);
+    });
+
   };
 
   return {init:init}
